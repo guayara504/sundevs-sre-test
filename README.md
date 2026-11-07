@@ -48,6 +48,8 @@ flowchart LR
   ddb -.->|"replicacion"| ddbdr
 ```
 
+> **Diagrama AWS con iconos oficiales:** [docs/architecture.drawio](docs/architecture.drawio). Ábrelo en [diagrams.net](https://app.diagrams.net/#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Fguayara504%2Fsundevs-sre-test%2Fmain%2Fdocs%2Farchitecture.drawio) o con la extensión *Draw.io Integration* de VS Code.
+
 ### Flujo de datos (read-through cache)
 
 ```
@@ -272,7 +274,7 @@ Detalle y procedimiento de failback en [docs/dr-runbook.md](docs/dr-runbook.md).
 | ElastiCache t3.micro | unos 12 USD por nodo | `enable_redis = false` (la Lambda sigue respondiendo desde DynamoDB) |
 | Lambda, API GW, DynamoDB on-demand, S3 | céntimos con tráfico de prueba | pago por uso |
 
-Después de generar la evidencia, en **dev** se apagaron NAT y Redis (`envs/dev.tfvars`).
+Después de validar el servicio se apagaron NAT y Redis en **dev** y en **prod** (`envs/dev.tfvars`, `envs/prod.tfvars`). Ambos ambientes siguen respondiendo en modo degradado, desde DynamoDB vía gateway endpoints. Para reactivar la cache basta con poner `enable_redis = true` (y `enable_nat_gateway` si se necesita salida a internet) y desplegar por el pipeline. El DR en us-east-2 queda **mapeado**: datos replicados y automatización lista, sin cómputo encendido.
 
 ---
 
