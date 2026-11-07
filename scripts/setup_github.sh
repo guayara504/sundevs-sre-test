@@ -34,6 +34,9 @@ create_env production main "[{\"type\":\"User\",\"id\":${REVIEWER_ID}}]"
 # dr sin revisores: el failover automatico no debe esperar a una persona.
 create_env dr main '[]'
 
+# Sin "linear history": las promociones develop -> main y el back-merge
+# main -> develop se hacen con merge commit para que ambas ramas compartan
+# historial (con squash los SHAs divergen y cada release genera conflictos).
 protect_branch() {
   local branch="$1"; shift
   echo "==> Proteccion de rama ${branch}"
@@ -45,7 +48,7 @@ protect_branch() {
   "enforce_admins": false,
   "required_pull_request_reviews": { "required_approving_review_count": 0, "require_code_owner_reviews": false },
   "restrictions": null,
-  "required_linear_history": true,
+  "required_linear_history": false,
   "allow_force_pushes": false,
   "allow_deletions": false,
   "required_conversation_resolution": true
