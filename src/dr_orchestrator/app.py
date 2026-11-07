@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime
@@ -59,6 +60,24 @@ def _get_token() -> str | None:
     return value or None
 
 
+def _primary_is_healthy(attempts: int = 3, wait_seconds: float = 5.0) -> bool:
+    """True si GET /health de la primaria responde 200 en alguno de los intentos."""
+    url = os.environ.get("PRIMARY_HEALTH_URL")
+    if not url:
+        return False
+    for attempt in range(attempts):
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": "sundevs-sre-dr-orchestrator"})
+            with urllib.request.urlopen(request, timeout=5) as response:
+                if response.status == 200:
+                    return True
+        except Exception:  # noqa: BLE001, S110 - cualquier falla cuenta como no saludable
+            pass
+        if attempt < attempts - 1:
+            time.sleep(wait_seconds)
+    return False
+
+
 def _dispatch(token: str, reason: str) -> int:
     url = f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/dispatches"
     body = json.dumps(
@@ -95,6 +114,16 @@ def failover(reason: str, dry_run: bool = False) -> dict[str, Any]:
     if status.startswith(TRIGGERED_PREFIX):
         logger.info("failover ya disparado previamente; se ignora", extra={"status": status})
         return {"action": "skipped", "status": status}
+
+    # Segunda verificacion independiente: un failover es costoso y disruptivo,
+    # no se decide solo con la metrica (protege contra falsos positivos).
+    if not dry_run and _primary_is_healthy():
+        _notify(
+            "[DR] Falsa alarma - la region primaria responde",
+            f"{reason}\n\nLa re-verificacion de {os.environ.get('PRIMARY_HEALTH_URL')} respondio 200. "
+            "No se dispara el failover.",
+        )
+        return {"action": "false-alarm", "status": status}
 
     if os.environ.get("AUTO_FAILOVER", "false").lower() != "true":
         _notify(
