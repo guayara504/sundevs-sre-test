@@ -8,40 +8,44 @@ Infraestructura 100% como código (**Terraform**) para un servicio HTTP que proc
 
 ```mermaid
 flowchart LR
-  client([Cliente HTTP]) -->|HTTPS| apigw[API Gateway<br/>HTTP API<br/>throttling + CORS + access logs]
+  client(["Cliente HTTP"]) -->|"HTTPS"| apigw["API Gateway (HTTP API)<br/>throttling, CORS, access logs"]
 
-  subgraph use1[us-east-1 · región primaria]
-    apigw -->|AWS_PROXY| lambda
-    subgraph vpc[VPC 10.x.0.0/16 · 2 AZ]
-      subgraph pub[Subnets públicas]
-        nat[NAT Gateway<br/>opcional]
+  subgraph use1["us-east-1 - region primaria"]
+    apigw -->|"AWS_PROXY"| lambda
+    subgraph vpc["VPC 10.x.0.0/16 - 2 AZ"]
+      subgraph pub["Subnets publicas"]
+        nat["NAT Gateway (opcional)"]
       end
-      subgraph priv[Subnets privadas]
-        lambda[Lambda processor<br/>Python 3.12 arm64]
-        redis[(ElastiCache Redis 7.1<br/>TLS + auth IAM)]
+      subgraph priv["Subnets privadas"]
+        lambda["Lambda processor<br/>Python 3.12 arm64"]
+        redis[("ElastiCache Redis 7.1<br/>TLS + auth IAM")]
       end
-      s3gw{{Gateway Endpoint S3}}
-      ddbgw{{Gateway Endpoint DynamoDB}}
+      s3gw{{"Gateway Endpoint S3"}}
+      ddbgw{{"Gateway Endpoint DynamoDB"}}
     end
-    lambda -->|6379 TLS<br/>SG→SG| redis
-    lambda --> s3gw --> s3[(S3 results/fecha/id.json<br/>versionado · BPA x4)]
-    lambda --> ddbgw --> ddb[(DynamoDB<br/>fuente de verdad<br/>PITR)]
-    cw[CloudWatch<br/>alarmas · dashboard · EMF] --> sns[SNS] --> mail[[vgs2016@gmail.com]]
+    lambda -->|"6379 TLS, SG a SG"| redis
+    lambda --> s3gw
+    s3gw --> s3[("S3 results/fecha/id.json<br/>versionado, BPA x4")]
+    lambda --> ddbgw
+    ddbgw --> ddb[("DynamoDB<br/>fuente de verdad, PITR")]
+    cw["CloudWatch<br/>alarmas, dashboard, EMF"] --> sns["SNS"]
+    sns --> mail["Correo de alertas<br/>vgs2016 at gmail.com"]
   end
 
-  subgraph use2[us-east-2 · región DR]
-    s3dr[(S3 réplica · CRR)]
-    ddbdr[(DynamoDB réplica<br/>global table)]
-    canary[Lambda health-canary<br/>cada 1 min] -->|GET /health| apigw
-    canary --> alarm[Alarma PrimaryHealthy<br/>3/3 min en 0]
-    alarm --> orch[Lambda dr-orchestrator]
-    orch -->|repository_dispatch| gha[GitHub Actions<br/>workflow dr.yml]
-    gha -->|terraform apply| restored[Stack restaurado<br/>VPC + Lambda + Redis + API]
-    restored --> s3dr & ddbdr
+  subgraph use2["us-east-2 - region DR"]
+    s3dr[("S3 replica (CRR)")]
+    ddbdr[("DynamoDB replica<br/>global table")]
+    canary["Lambda health-canary<br/>cada 1 min"] -->|"GET /health"| apigw
+    canary --> alarm["Alarma PrimaryHealthy<br/>3 de 3 min en 0"]
+    alarm --> orch["Lambda dr-orchestrator"]
+    orch -->|"repository_dispatch"| gha["GitHub Actions<br/>workflow dr.yml"]
+    gha -->|"terraform apply"| restored["Stack restaurado<br/>VPC, Lambda, Redis, API"]
+    restored --> s3dr
+    restored --> ddbdr
   end
 
-  s3 -. replicación .-> s3dr
-  ddb -. replicación .-> ddbdr
+  s3 -.->|"replicacion"| s3dr
+  ddb -.->|"replicacion"| ddbdr
 ```
 
 ### Flujo de datos (read-through cache)
