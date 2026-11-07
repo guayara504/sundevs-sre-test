@@ -48,6 +48,8 @@ flowchart LR
   ddb -.->|"replicacion"| ddbdr
 ```
 
+> **Diagrama AWS con iconos oficiales:** [docs/architecture.drawio](docs/architecture.drawio). Ábrelo en [diagrams.net](https://app.diagrams.net/#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Fguayara504%2Fsundevs-sre-test%2Fmain%2Fdocs%2Farchitecture.drawio) o con la extensión *Draw.io Integration* de VS Code.
+
 ### Flujo de datos (read-through cache)
 
 ```
