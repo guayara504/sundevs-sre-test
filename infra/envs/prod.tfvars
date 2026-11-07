@@ -7,8 +7,11 @@ owner_email     = "vgs2016@gmail.com"
 
 vpc_cidr = "10.30.0.0/16"
 
-enable_nat_gateway = true
-enable_redis       = true
+# Apagados tras validar el servicio (ahorro ~57 USD/mes). La Lambda opera en
+# modo degradado: S3/DynamoDB via gateway endpoints, X-Cache: MISS desde DynamoDB.
+# Para reactivar: poner en true y desplegar (main -> production).
+enable_nat_gateway = false
+enable_redis       = false
 enable_flow_logs   = true
 
 redis_node_type = "cache.t3.micro"
