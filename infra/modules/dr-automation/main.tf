@@ -211,7 +211,7 @@ resource "aws_lambda_function" "orchestrator" {
   runtime          = "python3.12"
   architectures    = ["arm64"]
   handler          = "app.handler"
-  timeout          = 30
+  timeout          = 60 # incluye la re-verificacion de la primaria (3 intentos)
   memory_size      = 128
   filename         = "${var.artifacts_dir}/dr_orchestrator.zip"
   source_code_hash = filebase64sha256("${var.artifacts_dir}/dr_orchestrator.zip")
@@ -221,13 +221,14 @@ resource "aws_lambda_function" "orchestrator" {
   # exige mantener 10 sin reservar.
   environment {
     variables = {
-      GITHUB_REPOSITORY = var.repository
-      TOKEN_SECRET_ID   = aws_secretsmanager_secret.github_token.arn
-      STATUS_PARAMETER  = aws_ssm_parameter.status.name
-      NOTIFY_TOPIC_ARN  = aws_sns_topic.notifications.arn
-      AUTO_FAILOVER     = tostring(var.auto_failover)
-      PRIMARY_REGION    = var.primary_region
-      DR_REGION         = data.aws_region.current.region
+      GITHUB_REPOSITORY  = var.repository
+      TOKEN_SECRET_ID    = aws_secretsmanager_secret.github_token.arn
+      STATUS_PARAMETER   = aws_ssm_parameter.status.name
+      NOTIFY_TOPIC_ARN   = aws_sns_topic.notifications.arn
+      AUTO_FAILOVER      = tostring(var.auto_failover)
+      PRIMARY_REGION     = var.primary_region
+      PRIMARY_HEALTH_URL = var.primary_health_url
+      DR_REGION          = data.aws_region.current.region
     }
   }
 
