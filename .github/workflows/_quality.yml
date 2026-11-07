@@ -1,0 +1,81 @@
+# Quality gates reutilizables (CI de PRs y pre-deploy).
+name: quality
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python - lint y pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Ruff (lint + seguridad)
+        run: ruff check . && ruff format --check .
+      - name: Pytest
+        run: pytest
+
+  terraform:
+    name: Terraform - fmt, validate, tflint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.13.5"
+          terraform_wrapper: false
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+      - name: terraform validate (infra y bootstrap)
+        run: |
+          for dir in infra bootstrap; do
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+          done
+      - uses: terraform-linters/setup-tflint@v4
+      - name: tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }} # evita rate limit al descargar el plugin aws
+        run: |
+          tflint --init --config "$GITHUB_WORKSPACE/.tflint.hcl"
+          for dir in infra bootstrap; do
+            echo "::group::tflint $dir"
+            tflint --chdir="$dir" --config "$GITHUB_WORKSPACE/.tflint.hcl" --minimum-failure-severity=error
+            echo "::endgroup::"
+          done
+
+  iac-security:
+    name: IaC - escaneo de seguridad (Checkov)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          config_file: .checkov.yaml
+          quiet: true
+
+  secrets:
+    name: Escaneo de secretos (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

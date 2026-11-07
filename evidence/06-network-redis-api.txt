@@ -1,0 +1,95 @@
+## Red: subnets privadas, endpoints y security groups
+--------------------------------------------------------------
+|                    DescribeVpcEndpoints                    |
++-----------------------------------+------------+-----------+
+|              Service              |   State    |   Type    |
++-----------------------------------+------------+-----------+
+|  com.amazonaws.us-east-1.dynamodb |  available |  Gateway  |
++-----------------------------------+------------+-----------+
+||                        RouteTables                       ||
+|+----------------------------------------------------------+|
+||  rtb-00f23da74beedea5a                                   ||
+|+----------------------------------------------------------+|
+|                    DescribeVpcEndpoints                    |
++--------------------------------+--------------+------------+
+|             Service            |    State     |   Type     |
++--------------------------------+--------------+------------+
+|  com.amazonaws.us-east-1.s3    |  available   |  Gateway   |
++--------------------------------+--------------+------------+
+||                        RouteTables                       ||
+|+----------------------------------------------------------+|
+||  rtb-00f23da74beedea5a                                   ||
+|+----------------------------------------------------------+|
+[
+    {
+        "Name": "sundevs-sre-dev-use1-lambda-sg",
+        "Ingress": [],
+        "Egress": [
+            {
+                "Port": 6379,
+                "ToSG": "sg-0311c948e0540a3ff",
+                "PrefixList": null
+            },
+            {
+                "Port": 443,
+                "ToSG": null,
+                "PrefixList": "pl-63a5400a"
+            }
+        ]
+    },
+    {
+        "Name": "sundevs-sre-dev-use1-redis-sg",
+        "Ingress": [
+            {
+                "Port": 6379,
+                "FromSG": "sg-068b0001342831459"
+            }
+        ],
+        "Egress": []
+    }
+]
+# Lambda en subnets privadas
+{
+    "Runtime": "python3.12",
+    "Arch": [
+        "arm64"
+    ],
+    "VpcConfig": {
+        "SubnetIds": [
+            "subnet-0b6f84e7f2f7577b6",
+            "subnet-0f032b6c90f647a4c"
+        ],
+        "SecurityGroupIds": [
+            "sg-068b0001342831459"
+        ],
+        "VpcId": "vpc-0e383c7c7c6e5ea4b",
+        "Ipv6AllowedForDualStack": false
+    }
+}
+# Redis: TLS, cifrado en reposo, auth IAM (RBAC)
+{
+    "Status": "available",
+    "NodeType": "cache.t3.micro",
+    "TransitEncryption": true,
+    "AtRestEncryption": true,
+    "UserGroups": [
+        "sundevs-sre-dev-use1-users"
+    ]
+}
+-----------------------------------------------------------------------------------------------------------------------------------
+|                                                          DescribeUsers                                                          |
++-------------------------------------------+--------------+---------+-------------------------------+----------------------------+
+|                  Access                   |    Auth      | Status  |            UserId             |         UserName           |
++-------------------------------------------+--------------+---------+-------------------------------+----------------------------+
+|  on ~* -@all +get +set +ping +ttl +exists |  iam         |  active |  sundevs-sre-dev-use1-app     |  sundevs-sre-dev-use1-app  |
+|  off ~* -@all                             |  no-password |  active |  sundevs-sre-dev-use1-default |  default                   |
++-------------------------------------------+--------------+---------+-------------------------------+----------------------------+
+# API Gateway stage: throttling y access logs
+{
+    "Throttling": {
+        "DetailedMetricsEnabled": true,
+        "ThrottlingBurstLimit": 40,
+        "ThrottlingRateLimit": 20.0
+    },
+    "AccessLogs": "arn:aws:logs:us-east-1:624991055549:log-group:/aws/apigateway/sundevs-sre-dev-use1-http-api/access"
+}

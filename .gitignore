@@ -1,0 +1,42 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Build artifacts
+build/
+dist/
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Enunciado confidencial de la prueba (no distribuir)
+*.pdf
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

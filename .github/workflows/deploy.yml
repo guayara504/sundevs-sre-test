@@ -1,0 +1,158 @@
+# Despliegue continuo por rama (promocion via PR):
+#   push a develop → environment "dev"        (automatico)
+#   push a main    → environment "production" (requiere aprobacion manual)
+#
+# Flujo: quality → build → plan (rol solo-lectura, plan guardado) →
+#        apply del MISMO plan (rol del ambiente, via environment) → smoke test
+name: deploy
+
+on:
+  push:
+    branches: [develop, main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "evidence/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Nunca dos despliegues simultaneos del mismo ambiente; no se cancelan applies.
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  context:
+    name: Resolver ambiente
+    runs-on: ubuntu-latest
+    outputs:
+      tf_env: ${{ steps.ctx.outputs.tf_env }}
+      gh_env: ${{ steps.ctx.outputs.gh_env }}
+      role: ${{ steps.ctx.outputs.role }}
+    steps:
+      - id: ctx
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            main)    echo "tf_env=prod" >> "$GITHUB_OUTPUT"; echo "gh_env=production" >> "$GITHUB_OUTPUT"; echo "role=sundevs-sre-gha-prod" >> "$GITHUB_OUTPUT" ;;
+            develop) echo "tf_env=dev"  >> "$GITHUB_OUTPUT"; echo "gh_env=dev"        >> "$GITHUB_OUTPUT"; echo "role=sundevs-sre-gha-dev"  >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::Rama ${GITHUB_REF_NAME} no despliega"; exit 1 ;;
+          esac
+
+  quality:
+    needs: context
+    uses: ./.github/workflows/_quality.yml
+
+  build:
+    needs: context
+    uses: ./.github/workflows/_build.yml
+
+  plan:
+    name: Plan (${{ needs.context.outputs.tf_env }})
+    needs: [context, quality, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_ENV: ${{ needs.context.outputs.tf_env }}
+    outputs:
+      has_changes: ${{ steps.plan.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-artifacts
+          path: build
+      - uses: ./.github/actions/terraform-init
+        with:
+          role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/sundevs-sre-gha-plan
+          aws-region: us-east-1
+          tf-env: ${{ env.TF_ENV }}
+      - name: terraform plan
+        id: plan
+        working-directory: infra
+        run: |
+          set +e
+          terraform plan -input=false -no-color -detailed-exitcode \
+            -var-file="envs/${TF_ENV}.tfvars" -var="artifacts_dir=../build" \
+            -out=tfplan > plan.txt
+          code=$?
+          set -e
+          cat plan.txt
+          if [ "$code" -eq 1 ]; then exit 1; fi
+          echo "has_changes=$([ "$code" -eq 2 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Plan \`${TF_ENV}\`"
+            grep -E "^Plan:|No changes" plan.txt || true
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ env.TF_ENV }}
+          path: infra/tfplan
+          retention-days: 3
+
+  apply:
+    name: Apply (${{ needs.context.outputs.gh_env }})
+    needs: [context, plan]
+    if: needs.plan.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # El environment aplica las reglas de proteccion (revisores en production,
+    # rama permitida) y es lo que habilita el 'sub' OIDC del rol de despliegue.
+    environment:
+      name: ${{ needs.context.outputs.gh_env }}
+      url: ${{ steps.out.outputs.api_url }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_ENV: ${{ needs.context.outputs.tf_env }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-artifacts
+          path: build
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ env.TF_ENV }}
+          path: infra
+      - uses: ./.github/actions/terraform-init
+        with:
+          role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ needs.context.outputs.role }}
+          aws-region: us-east-1
+          tf-env: ${{ env.TF_ENV }}
+      - name: terraform apply (plan aprobado)
+        working-directory: infra
+        run: terraform apply -input=false -no-color tfplan
+      - name: Outputs
+        id: out
+        working-directory: infra
+        run: echo "api_url=$(terraform output -raw api_endpoint)" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    name: Smoke test (${{ needs.context.outputs.tf_env }})
+    needs: [context, plan, apply]
+    if: always() && needs.plan.result == 'success' && (needs.apply.result == 'success' || needs.apply.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_ENV: ${{ needs.context.outputs.tf_env }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/terraform-init
+        with:
+          role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/sundevs-sre-gha-plan
+          aws-region: us-east-1
+          tf-env: ${{ env.TF_ENV }}
+      - name: MISS → HIT end-to-end
+        run: |
+          api=$(terraform -chdir=infra output -raw api_endpoint)
+          redis=$(terraform -chdir=infra output -raw redis_enabled)
+          ./scripts/smoke_test.sh "$api" "$redis" | tee -a "$GITHUB_STEP_SUMMARY"

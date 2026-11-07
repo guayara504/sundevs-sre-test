@@ -1,0 +1,42 @@
+# Checkov: gate de seguridad de IaC. Cada excepcion esta justificada; todo lo
+# demas debe pasar. Revisar esta lista en cada cambio de arquitectura.
+framework:
+  - terraform
+compact: true
+quiet: true
+download-external-modules: false
+skip-check:
+  # --- Cifrado con KMS CMK (se usan llaves administradas por AWS) -------------
+  # Decision de costo/operacion: SSE-S3, cifrado por defecto de DynamoDB,
+  # ElastiCache at-rest/in-transit y CloudWatch Logs con llaves de AWS. Una CMK
+  # por recurso agrega costo y gestion de key policies sin cambiar el modelo de
+  # amenaza de esta prueba. Ruta de mejora documentada en el README.
+  - CKV_AWS_145 # S3 con KMS
+  - CKV_AWS_119 # DynamoDB con CMK
+  - CKV_AWS_191 # ElastiCache con CMK
+  - CKV_AWS_158 # Log groups con KMS
+  - CKV_AWS_149 # Secrets Manager con CMK
+  - CKV_AWS_173 # Variables de entorno de Lambda con CMK (no contienen secretos)
+  - CKV_AWS_26  # SNS cifrado: CloudWatch Alarms requiere CMK con key policy dedicada
+  - CKV2_AWS_34 # Parametro SSM de estado (STANDBY/FAILOVER): no es sensible
+  # --- Decisiones de arquitectura ---------------------------------------------
+  - CKV_AWS_309 # API publica por requerimiento (sin authorizer); protegida con throttling
+  - CKV_AWS_117 # Canary y orquestador DR fuera de VPC a proposito: deben alcanzar internet (API publica / GitHub) sin NAT
+  - CKV_AWS_116 # Invocaciones sincronas (API) o reintentadas por SNS/EventBridge: DLQ no aplica
+  - CKV_AWS_115 # Cuota de concurrencia de la cuenta = 10: AWS no permite reservar
+  - CKV_AWS_272 # Code signing: requiere AWS Signer; la integridad la da el pipeline (artefacto unico + hash)
+  - CKV2_AWS_50 # Redis Multi-AZ: habilitado en prod (redis_num_nodes=2); dev usa 1 nodo por costo
+  - CKV2_AWS_57 # Token GitHub (PAT fine-grained) con expiracion propia; rotacion manual documentada
+  - CKV_AWS_338 # Retencion de logs parametrizada por ambiente (dev 14d, prod 90d)
+  - CKV_AWS_18  # Access logging S3: auditoria via CloudTrail data events (recomendado a nivel cuenta)
+  - CKV2_AWS_62 # Notificaciones de eventos S3: no hay consumidores
+  - CKV_AWS_144 # CRR: solo el bucket de resultados de prod se replica (los demas son estado/destino DR)
+  - CKV_AWS_394 # AZs: se toman las 2 primeras disponibles (sin opt-in)
+  - CKV2_AWS_5  # Falso positivo: los SG se asocian a Lambda/ElastiCache desde otros modulos
+  # --- Politicas IAM del bootstrap (roles de CI/CD y boundary) ----------------
+  # Acotadas por prefijo de recurso, condicion de boundary y restriccion de
+  # region; checkov no evalua condiciones ni Deny compensatorios.
+  - CKV_AWS_107
+  - CKV_AWS_109
+  - CKV_AWS_111
+  - CKV_AWS_356

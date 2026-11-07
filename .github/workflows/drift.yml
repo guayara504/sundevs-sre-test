@@ -1,0 +1,64 @@
+# Deteccion diaria de drift: cualquier cambio hecho fuera de IaC (consola/CLI)
+# abre un issue. Refuerza la regla "ningun recurso existe solo en consola".
+name: drift
+
+on:
+  schedule:
+    - cron: "0 11 * * 1-5" # 06:00 Bogota, lunes a viernes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+
+  drift:
+    name: Drift ${{ matrix.env }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev, prod]
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-artifacts
+          path: build
+      - uses: ./.github/actions/terraform-init
+        with:
+          role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/sundevs-sre-gha-plan
+          aws-region: us-east-1
+          tf-env: ${{ matrix.env }}
+      - name: terraform plan -detailed-exitcode
+        id: plan
+        working-directory: infra
+        run: |
+          set +e
+          terraform plan -input=false -lock=false -no-color -detailed-exitcode \
+            -var-file="envs/${{ matrix.env }}.tfvars" -var="artifacts_dir=../build" > plan.txt 2>&1
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat plan.txt
+      - name: Abrir issue si hay drift
+        if: steps.plan.outputs.code == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const plan = require('fs').readFileSync('infra/plan.txt', 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title: `Drift detectado en ${{ matrix.env }} (${new Date().toISOString().slice(0,10)})`,
+              labels: ['drift'],
+              body: '```\n' + plan.slice(-60000) + '\n```',
+            });
+      - name: Fallar si el plan fallo
+        if: steps.plan.outputs.code == '1'
+        run: exit 1

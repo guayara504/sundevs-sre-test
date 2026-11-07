@@ -1,0 +1,4 @@
+-r src/processor/requirements.txt
+boto3==1.35.99
+pytest==8.3.4
+ruff==0.8.6

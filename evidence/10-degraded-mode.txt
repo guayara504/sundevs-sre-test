@@ -1,0 +1,29 @@
+## Modo degradado: enable_nat_gateway=false, enable_redis=false (ahorro ~45 USD/mes)
+# NAT Gateways activos en la VPC:
+0
+# ElastiCache del proyecto:
+0
+
+# 2026-11-07T02:40:41Z request ya procesado antes (servido desde DynamoDB via gateway endpoint, sin NAT)
+HTTP/2 200 
+date: Sat, 07 Nov 2026 02:40:44 GMT
+content-type: application/json
+content-length: 461
+x-request-id: 63bc0cff-3e31-421f-aafb-f4460a3d5b04
+x-cache: MISS
+x-result-source: dynamodb
+apigw-requestid: Gctirj9HoAMEcIA=
+
+{"id": "dfc04fad98b8ed7a6bbd392c3da7e9742c2c8950818cf94b5d176c2d9913ad34", "input": {"data": "hola sundevs"}, "output": {"sha256": "e18376a5f89a8a56c2a29b69e0de7c67ba3f2a4cb7aaa6436de0e662807c4304", "reversed": "svednus aloh", "uppercase": "HOLA SUNDEVS", "length": 12, "word_count": 2}, "processed_at": "2026-11-07T02:32:22.030+00:00", "s3_key": "results/2026-11-07/dfc04fad98b8ed7a6bbd392c3da7e9742c2c8950818cf94b5d176c2d9913ad34.json", "region": "us-east-1"}
+
+# request nuevo (procesa y escribe S3 + DynamoDB sin NAT: gateway endpoints)
+HTTP/2 200 
+date: Sat, 07 Nov 2026 02:40:45 GMT
+content-type: application/json
+content-length: 473
+x-cache: MISS
+x-result-source: processed
+x-request-id: 509ed10b-0269-49aa-8670-8748b5e2a6a2
+apigw-requestid: GctjEjLjoAMEcxg=
+
+{"id": "2e8cd9ca39a27ededd81b8cb6e009b71f560d7cafa67364f5eb45e5cddce9c6c", "input": {"data": "sin nat ni redis"}, "output": {"sha256": "8fd3c15d4eb3204603d3587fa76a87ccad12b8716c3476ef15457602b938ffe7", "reversed": "sider in tan nis", "uppercase": "SIN NAT NI REDIS", "length": 16, "word_count": 4}, "processed_at": "2026-11-07T02:40:44.830+00:00", "s3_key": "results/2026-11-07/2e8cd9ca39a27ededd81b8cb6e009b71f560d7cafa67364f5eb45e5cddce9c6c.json", "region": "us-east-1"}

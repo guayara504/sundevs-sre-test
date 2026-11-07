@@ -1,0 +1,22 @@
+# 2026-11-07T02:34:20Z mismo request despues de 65s (TTL de 60s expirado en Redis)
+HTTP/2 200 
+date: Sat, 07 Nov 2026 02:34:20 GMT
+content-type: application/json
+content-length: 521
+x-request-id: 69510a06-21ee-4e00-8684-33f86501e996
+x-cache: MISS
+x-result-source: dynamodb
+apigw-requestid: GcsnDhRQoAMEZRw=
+
+{"id": "4cb357d32b9f3142a4ce5ac99bbf626941b01b56fb14cfd8ea5adc9a9101a7ab", "input": {"data": "evidencia prueba tecnica sundevs"}, "output": {"sha256": "bee9c948e9ffd0f98f4e73772076a0a77eccb50d383aaeb923bc2abde67a09fc", "reversed": "svednus acincet abeurp aicnedive", "uppercase": "EVIDENCIA PRUEBA TECNICA SUNDEVS", "length": 32, "word_count": 4}, "processed_at": "2026-11-07T02:32:30.529+00:00", "s3_key": "results/2026-11-07/4cb357d32b9f3142a4ce5ac99bbf626941b01b56fb14cfd8ea5adc9a9101a7ab.json", "region": "us-east-1"}
+# llamada inmediata siguiente (cache re-hidratada)
+HTTP/2 200 
+date: Sat, 07 Nov 2026 02:34:21 GMT
+content-type: application/json
+content-length: 521
+x-request-id: 54748dbb-518d-4000-8bd9-67b7f9eb84d4
+x-cache: HIT
+x-result-source: redis
+apigw-requestid: GcsnHgqFoAMEPdQ=
+
+{"id": "4cb357d32b9f3142a4ce5ac99bbf626941b01b56fb14cfd8ea5adc9a9101a7ab", "input": {"data": "evidencia prueba tecnica sundevs"}, "output": {"sha256": "bee9c948e9ffd0f98f4e73772076a0a77eccb50d383aaeb923bc2abde67a09fc", "reversed": "svednus acincet abeurp aicnedive", "uppercase": "EVIDENCIA PRUEBA TECNICA SUNDEVS", "length": 32, "word_count": 4}, "processed_at": "2026-11-07T02:32:30.529+00:00", "s3_key": "results/2026-11-07/4cb357d32b9f3142a4ce5ac99bbf626941b01b56fb14cfd8ea5adc9a9101a7ab.json", "region": "us-east-1"}

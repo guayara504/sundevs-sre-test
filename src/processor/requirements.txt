@@ -1,0 +1,2 @@
+# boto3/botocore los provee el runtime python3.12 de Lambda.
+redis==5.2.1

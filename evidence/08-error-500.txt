@@ -1,0 +1,15 @@
+## Excepcion no controlada -> HTTP 500 con mensaje descriptivo + registro en CloudWatch
+# aws lambda invoke --function-name sundevs-sre-dev-use1-processor --payload '{"routeKey":"POST /process","isBase64Encoded":true,"body":"%%%no-es-base64%%%"}'
+{
+    "statusCode": 500,
+    "headers": {
+        "Content-Type": "application/json",
+        "X-Request-Id": "ee062e4a-ca98-418c-b29b-0939835de6b9",
+        "X-Cache": "MISS"
+    },
+    "body": "{\"error\": \"InternalServerError\", \"message\": \"No fue posible procesar la solicitud (Error). El error quedo registrado en CloudWatch con el requestId indicado.\", \"requestId\": \"ee062e4a-ca98-418c-b29b-0939835de6b9\"}",
+    "isBase64Encoded": false
+}
+# CloudWatch Logs (/aws/lambda/sundevs-sre-dev-use1-processor) filtrado por requestId ee062e4a-ca98-418c-b29b-0939835de6b9
+{"timestamp": "2026-11-07T02:33:16Z", "level": "ERROR", "message": "unhandled error processing request", "logger": "root", "stackTrace": ["  File \"/var/task/app.py\", line 168, in handler\n    payload = parse_body(event)\n              ^^^^^^^^^^^^^^^^^\n", "  File \"/var/task/app.py\", line 86, in parse_body\n    raw = base64.b64decode(raw).decode(\"utf-8\")\n          ^^^^^^^^^^^^^^^^^^^^^\n", "  File \"/var/lang/lib/python3.12/base64.py\", line 88, in b64decode\n    return binascii.a2b_base64(s, strict_mode=validate)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"], "errorType": "Error", "errorMessage": "Incorrect padding", "requestId": "ee062e4a-ca98-418c-b29b-0939835de6b9", "location": "/var/task/app.py:handler:182", "error_type": "Error"}
+

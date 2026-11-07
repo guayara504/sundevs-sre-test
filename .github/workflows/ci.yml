@@ -1,0 +1,96 @@
+# CI de Pull Requests: quality gates + terraform plan del ambiente destino
+# comentado en el PR. Nada se despliega desde un PR.
+#
+#   feature/* ──PR──▶ develop  → plan contra dev
+#   develop / hotfix/* ──PR──▶ main → plan contra prod
+name: ci
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  promotion-guard:
+    name: Regla de promocion de ramas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Solo develop o hotfix/* pueden entrar a main
+        if: github.base_ref == 'main'
+        run: |
+          head="${{ github.head_ref }}"
+          if [[ "$head" != "develop" && "$head" != hotfix/* ]]; then
+            echo "::error::A main solo se promueve desde develop o hotfix/* (rama actual: $head)"
+            exit 1
+          fi
+
+  quality:
+    needs: promotion-guard
+    uses: ./.github/workflows/_quality.yml
+
+  build:
+    needs: promotion-guard
+    uses: ./.github/workflows/_build.yml
+
+  plan:
+    name: Terraform plan (${{ github.base_ref == 'main' && 'prod' || 'dev' }})
+    needs: [quality, build]
+    # PRs desde forks no reciben token OIDC: no se planea con credenciales.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    env:
+      TF_ENV: ${{ github.base_ref == 'main' && 'prod' || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-artifacts
+          path: build
+      - uses: ./.github/actions/terraform-init
+        with:
+          role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/sundevs-sre-gha-plan
+          aws-region: us-east-1
+          tf-env: ${{ env.TF_ENV }}
+      - name: terraform plan
+        id: plan
+        working-directory: infra
+        run: |
+          set -o pipefail
+          terraform plan -input=false -lock=false -no-color \
+            -var-file="envs/${TF_ENV}.tfvars" -var="artifacts_dir=../build" \
+            -out=tfplan | tee plan.txt
+          terraform show -no-color tfplan > plan-full.txt
+      - name: Comentar plan en el PR
+        if: always() && steps.plan.outcome != 'skipped'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'infra/plan.txt';
+            const raw = fs.existsSync(path) ? fs.readFileSync(path, 'utf8') : 'plan no disponible';
+            const summary = (raw.match(/Plan: .*|No changes\..*/) || ['(ver logs)'])[0];
+            const body = [
+              `### Terraform plan · \`${process.env.TF_ENV}\` · ${{ steps.plan.outcome == 'success' && '✅' || '❌' }}`,
+              `**${summary}**`,
+              '<details><summary>Detalle</summary>',
+              '',
+              '```hcl',
+              raw.length > 60000 ? raw.slice(-60000) : raw,
+              '```',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, body,
+            });

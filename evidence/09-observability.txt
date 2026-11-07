@@ -1,0 +1,41 @@
+## Observabilidad
+# Metricas de negocio EMF (namespace SundevsSRE/Processor)
+--------------------------------
+|          ListMetrics         |
++----------------+-------------+
+|      Dims      |   Metric    |
++----------------+-------------+
+|  dev,processor |  CacheHit   |
+|  dev,processor |  CacheMiss  |
++----------------+-------------+
+# Alarmas CloudWatch -> SNS
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+|                                                                   DescribeAlarms                                                                    |
++-----------------------------------------------------------------+--------------------------------------------------------------+--------------------+
+|                             Actions                             |                            Alarm                             |       State        |
++-----------------------------------------------------------------+--------------------------------------------------------------+--------------------+
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-api-5xx                                |  INSUFFICIENT_DATA |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-api-latency-p95                        |  OK                |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-cache-degraded                         |  OK                |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-dynamodb-throttles                     |  INSUFFICIENT_DATA |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-lambda-duration-p95                    |  INSUFFICIENT_DATA |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-lambda-errors                          |  INSUFFICIENT_DATA |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-lambda-throttles                       |  OK                |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-nat-port-allocation-errors             |  OK                |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-redis-cpu-sundevs-sre-dev-use1-001     |  OK                |
+|  arn:aws:sns:us-east-1:624991055549:sundevs-sre-dev-use1-alerts |  sundevs-sre-dev-use1-redis-memory-sundevs-sre-dev-use1-001  |  OK                |
++-----------------------------------------------------------------+--------------------------------------------------------------+--------------------+
+# Suscripcion SNS (correo)
+----------------------------------------------------------
+|                ListSubscriptionsByTopic                |
++--------------------+-----------+-----------------------+
+|      Endpoint      | Protocol  |        Status         |
++--------------------+-----------+-----------------------+
+|  vgs2016@gmail.com |  email    |  PendingConfirmation  |
++--------------------+-----------+-----------------------+
+# API access logs (ultimas entradas, formato JSON)
+{"errorMessage":"-","httpMethod":"POST","integrationError":"-","integrationLatency":"14","integrationStatus":"200","ip":"x.x.x.x","protocol":"HTTP/1.1","requestId":"GcsV8hrMoAMEJBg=","requestTime":"07/Nov/2026:02:32:31 +0000","responseLatency":"19","responseLength":"521","routeKey":"POST /process","status":"200","userAgent":"curl/7.78.0"}
+{"errorMessage":"-","httpMethod":"GET","integrationError":"-","integrationLatency":"32","integrationStatus":"200","ip":"x.x.x.x","protocol":"HTTP/1.1","requestId":"GcsY6h3RoAMEcLg=","requestTime":"07/Nov/2026:02:32:50 +0000","responseLatency":"37","responseLength":"16","routeKey":"GET /health","status":"200","userAgent":"curl/7.78.0"}
+{"errorMessage":"-","httpMethod":"POST","integrationError":"-","integrationLatency":"27","integrationStatus":"200","ip":"x.x.x.x","protocol":"HTTP/1.1","requestId":"GcsY9jPgoAMEcVA=","requestTime":"07/Nov/2026:02:32:50 +0000","responseLatency":"32","responseLength":"134","routeKey":"POST /process","status":"400","userAgent":"curl/7.78.0"}
+{"errorMessage":"-","httpMethod":"POST","integrationError":"-","integrationLatency":"16","integrationStatus":"200","ip":"x.x.x.x","protocol":"HTTP/1.1","requestId":"GcsZBiSHoAMEJjQ=","requestTime":"07/Nov/2026:02:32:50 +0000","responseLatency":"21","responseLength":"152","routeKey":"POST /process","status":"400","userAgent":"curl/7.78.0"}
+{"errorMessage":"-","httpMethod":"OPTIONS","integrationError":"-","integrationLatency":"0","integrationStatus":"204","ip":"x.x.x.x","protocol":"HTTP/1.1","requestId":"GcsZEimJoAMEcCA=","requestTime":"07/Nov/2026:02:32:51 +0000","responseLatency":"4","responseLength":"0","routeKey":"-","status":"204","userAgent":"curl/7.78.0"}

@@ -1,0 +1,104 @@
+# DR backup & restore de PROD en us-east-2.
+#
+# Disparadores:
+#   - repository_dispatch "dr-failover": lo envia la Lambda dr-orchestrator
+#     cuando la alarma de caida de la region primaria entra en ALARM.
+#   - workflow_dispatch: failover manual, simulacro, o teardown tras el failback.
+#
+# Todo corre contra us-east-2 (credenciales, estado y recursos), de modo que
+# el procedimiento no depende de la region caida.
+name: dr
+
+on:
+  repository_dispatch:
+    types: [dr-failover]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "failover = restaurar en us-east-2 | teardown = destruir el entorno DR | plan = solo ver cambios"
+        type: choice
+        options: [plan, failover, teardown]
+        default: plan
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dr
+  cancel-in-progress: false
+
+env:
+  ACTION: ${{ github.event_name == 'repository_dispatch' && 'failover' || inputs.action }}
+  AWS_REGION: us-east-2
+  STATUS_PARAMETER: /sundevs-sre/prod/dr/status
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+
+  dr:
+    name: DR ${{ github.event_name == 'repository_dispatch' && 'failover' || inputs.action }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: dr
+      url: ${{ steps.out.outputs.api_url }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-artifacts
+          path: build
+
+      - uses: ./.github/actions/terraform-init
+        with:
+          role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/sundevs-sre-gha-dr
+          aws-region: ${{ env.AWS_REGION }}
+          tf-env: dr
+
+      - name: Motivo
+        run: |
+          echo "### DR: ${ACTION}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Motivo: ${{ github.event.client_payload.reason || 'ejecucion manual' }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: terraform plan
+        if: env.ACTION == 'plan'
+        working-directory: infra
+        run: terraform plan -input=false -no-color -var-file=envs/dr.tfvars -var="artifacts_dir=../build"
+
+      - name: terraform apply (restaurar en us-east-2)
+        if: env.ACTION == 'failover'
+        working-directory: infra
+        run: |
+          terraform plan -input=false -no-color -var-file=envs/dr.tfvars -var="artifacts_dir=../build" -out=tfplan
+          terraform apply -input=false -no-color tfplan
+
+      - name: Outputs
+        id: out
+        if: env.ACTION == 'failover'
+        working-directory: infra
+        run: echo "api_url=$(terraform output -raw api_endpoint)" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test DR
+        if: env.ACTION == 'failover'
+        run: ./scripts/smoke_test.sh "${{ steps.out.outputs.api_url }}" true | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Notificar URL restaurada
+        if: env.ACTION == 'failover'
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          topic="arn:aws:sns:${AWS_REGION}:${account}:sundevs-sre-prod-use2-dr-notifications"
+          aws sns publish --topic-arn "$topic" \
+            --subject "[DR] Servicio restaurado en ${AWS_REGION}" \
+            --message "La API de PROD esta operando en ${AWS_REGION}: ${{ steps.out.outputs.api_url }} (run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}). Actualice el DNS/cliente hacia esta URL."
+
+      - name: terraform destroy (failback completado)
+        if: env.ACTION == 'teardown'
+        working-directory: infra
+        run: |
+          terraform destroy -input=false -no-color -auto-approve -var-file=envs/dr.tfvars -var="artifacts_dir=../build"
+          aws ssm put-parameter --name "${STATUS_PARAMETER}" --value STANDBY --type String --overwrite

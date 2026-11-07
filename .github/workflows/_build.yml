@@ -1,0 +1,29 @@
+# Construye los artefactos de Lambda UNA vez; plan y apply usan el mismo zip.
+name: build
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Lambdas
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build (zip determinista, arm64 / py3.12)
+        run: python scripts/build_lambda.py
+      - name: Checksums
+        run: sha256sum build/*.zip | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lambda-artifacts
+          path: build/*.zip
+          retention-days: 7
+          if-no-files-found: error

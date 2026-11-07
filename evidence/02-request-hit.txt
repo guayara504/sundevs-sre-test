@@ -1,0 +1,11 @@
+# 2026-11-07T02:32:30Z mismo request (segunda llamada)
+HTTP/2 200 
+date: Sat, 07 Nov 2026 02:32:31 GMT
+content-type: application/json
+content-length: 521
+x-request-id: 0f4ee1e3-490b-43dc-997f-e1c9fb70c1a9
+x-cache: HIT
+x-result-source: redis
+apigw-requestid: GcsV8hrMoAMEJBg=
+
+{"id": "4cb357d32b9f3142a4ce5ac99bbf626941b01b56fb14cfd8ea5adc9a9101a7ab", "input": {"data": "evidencia prueba tecnica sundevs"}, "output": {"sha256": "bee9c948e9ffd0f98f4e73772076a0a77eccb50d383aaeb923bc2abde67a09fc", "reversed": "svednus acincet abeurp aicnedive", "uppercase": "EVIDENCIA PRUEBA TECNICA SUNDEVS", "length": 32, "word_count": 4}, "processed_at": "2026-11-07T02:32:30.529+00:00", "s3_key": "results/2026-11-07/4cb357d32b9f3142a4ce5ac99bbf626941b01b56fb14cfd8ea5adc9a9101a7ab.json", "region": "us-east-1"}

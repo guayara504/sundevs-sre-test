@@ -1,0 +1,43 @@
+## Manejo de errores y health
+# GET /health
+HTTP/2 200 
+date: Sat, 07 Nov 2026 02:32:50 GMT
+content-type: application/json
+content-length: 16
+x-request-id: b9261c10-4147-4774-a2c2-a0371159060a
+apigw-requestid: GcsY6h3RoAMEcLg=
+
+{"status": "ok"}
+
+# Body no JSON -> 400
+HTTP/2 400 
+date: Sat, 07 Nov 2026 02:32:50 GMT
+content-type: application/json
+content-length: 134
+x-request-id: 5e1cfc3a-1f5f-412f-b4f4-9cc5aa1dc615
+x-cache: MISS
+apigw-requestid: GcsY9jPgoAMEcVA=
+
+{"error": "BadRequest", "message": "El body no es JSON valido: Expecting value.", "requestId": "5e1cfc3a-1f5f-412f-b4f4-9cc5aa1dc615"}
+
+# Sin campo data -> 400
+HTTP/2 400 
+date: Sat, 07 Nov 2026 02:32:50 GMT
+content-type: application/json
+content-length: 152
+x-request-id: 6b98f488-b098-473e-96cd-9fd6ae14e157
+x-cache: MISS
+apigw-requestid: GcsZBiSHoAMEJjQ=
+
+{"error": "BadRequest", "message": "El campo 'data' es obligatorio y debe ser un string no vacio.", "requestId": "6b98f488-b098-473e-96cd-9fd6ae14e157"}
+
+# CORS preflight (cualquier origen, expone X-Cache)
+HTTP/2 204 
+date: Sat, 07 Nov 2026 02:32:51 GMT
+access-control-allow-origin: *
+access-control-allow-methods: GET,OPTIONS,POST
+access-control-allow-headers: authorization,content-type,x-request-id
+access-control-max-age: 300
+apigw-requestid: GcsZEimJoAMEcCA=
+
+

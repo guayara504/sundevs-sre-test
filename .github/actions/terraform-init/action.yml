@@ -1,0 +1,40 @@
+name: terraform-init
+description: Asume un rol de AWS via OIDC, instala Terraform e inicializa el backend del ambiente.
+
+inputs:
+  role-arn:
+    description: ARN del rol IAM a asumir (OIDC, sin llaves estaticas).
+    required: true
+  aws-region:
+    description: Region para las credenciales.
+    required: true
+  tf-env:
+    description: Ambiente de Terraform (dev | prod | dr) -> infra/envs/<tf-env>.backend.hcl
+    required: true
+  terraform-version:
+    description: Version de Terraform (fijada para builds reproducibles).
+    required: false
+    default: "1.13.5"
+
+runs:
+  using: composite
+  steps:
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.role-arn }}
+        aws-region: ${{ inputs.aws-region }}
+        role-session-name: gha-${{ github.run_id }}-${{ github.run_attempt }}
+        role-duration-seconds: 3600
+        mask-aws-account-id: true
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+        terraform_wrapper: false
+
+    - name: Terraform init
+      shell: bash
+      working-directory: infra
+      run: terraform init -input=false -lockfile=readonly -backend-config="envs/${{ inputs.tf-env }}.backend.hcl"

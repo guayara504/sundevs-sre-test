@@ -1,0 +1,77 @@
+## S3: privado y restringido al rol de la Lambda via VPC endpoint
+# aws s3api get-public-access-block
+{
+    "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "IgnorePublicAcls": true,
+        "BlockPublicPolicy": true,
+        "RestrictPublicBuckets": true
+    }
+}
+
+# aws s3api get-bucket-versioning
+{
+    "Status": "Enabled"
+}
+
+# Intento de leer el objeto con un usuario ADMINISTRADOR (debe ser AccessDenied por la bucket policy)
+download failed: s3://sundevs-sre-dev-results-624991055549-use1/results/2026-11-07/4cb357d32b9f3142a4ce5ac99bbf626941b01b56fb14cfd8ea5adc9a9101a7ab.json to - An error occurred (403) when calling the HeadObject operation: Forbidden
+
+# Bucket policy
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DenyInsecureTransport",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::sundevs-sre-dev-results-624991055549-use1/*",
+                "arn:aws:s3:::sundevs-sre-dev-results-624991055549-use1"
+            ],
+            "Condition": {
+                "Bool": {
+                    "aws:SecureTransport": "false"
+                }
+            }
+        },
+        {
+            "Sid": "DenyObjectAccessExceptProcessor",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "s3:PutObject*",
+                "s3:GetObject*",
+                "s3:DeleteObject*"
+            ],
+            "Resource": "arn:aws:s3:::sundevs-sre-dev-results-624991055549-use1/*",
+            "Condition": {
+                "ArnNotLike": {
+                    "aws:PrincipalArn": [
+                        "arn:aws:iam::624991055549:role/sundevs-sre-dev-use1-processor",
+                        "arn:aws:iam::624991055549:role/sundevs-sre-dev-use1-s3-replication"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "DenyProcessorOutsideVpcEndpoint",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::sundevs-sre-dev-results-624991055549-use1/*",
+                "arn:aws:s3:::sundevs-sre-dev-results-624991055549-use1"
+            ],
+            "Condition": {
+                "StringNotEquals": {
+                    "aws:SourceVpce": "vpce-066887dec259486c2"
+                },
+                "ArnLike": {
+                    "aws:PrincipalArn": "arn:aws:iam::624991055549:role/sundevs-sre-dev-use1-processor"
+                }
+            }
+        }
+    ]
+}

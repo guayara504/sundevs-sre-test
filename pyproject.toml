@@ -1,0 +1,20 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src/processor", "src/health_canary", "src/dr_orchestrator"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]
+# Build local: invoca pip con argumentos fijos (no hay entrada externa).
+"scripts/*" = ["S603"]
+# URLs https fijas desde configuracion (GitHub API / health de la API propia).
+"src/health_canary/*" = ["S310"]
+"src/dr_orchestrator/*" = ["S310"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
