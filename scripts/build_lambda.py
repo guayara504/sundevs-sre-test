@@ -46,6 +46,10 @@ def install_requirements(requirements: Path, target: Path) -> None:
             "cp",
             "--python-version",
             "3.12",
+            # requirements.txt es la lista COMPLETA y fijada de dependencias:
+            # pip evalua markers como python_full_version con el Python local
+            # (no con el runtime de Lambda), lo que haria el zip distinto por SO.
+            "--no-deps",
             "--only-binary=:all:",
             "--upgrade",
         ],
@@ -63,6 +67,7 @@ def deterministic_zip(source: Path, destination: Path) -> None:
         for path in files:
             info = zipfile.ZipInfo(path.relative_to(source).as_posix(), date_time=FIXED_DATE)
             info.external_attr = 0o644 << 16
+            info.create_system = 3  # Unix, sin importar el SO que construye
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, path.read_bytes())
 

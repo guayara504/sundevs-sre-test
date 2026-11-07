@@ -1,0 +1,12 @@
+title = "sundevs-sre gitleaks config"
+
+[extend]
+useDefault = true
+
+# Falso positivo: el header de respuesta "apigw-requestid" de API Gateway en
+# las capturas de evidencia es un ID de request, no una credencial.
+# Solo se ignoran lineas que son exactamente ese header.
+[allowlist]
+description = "API Gateway request IDs en evidencia"
+regexTarget = "line"
+regexes = ['''(?i)^\s*apigw-requestid: [A-Za-z0-9=_-]+\s*$''']
