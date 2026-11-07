@@ -29,7 +29,7 @@ aws lambda invoke --region us-east-2 --function-name sundevs-sre-prod-use2-dr-or
 
 1. La región primaria deja de responder `/health` durante 3 minutos.
 2. La alarma pasa a `ALARM` y llega un correo `[DR] ... ALARM`.
-3. El orquestador marca `FAILOVER_TRIGGERED:<ts>` en SSM, dispara el workflow `dr` y envía el correo `[DR] Failover iniciado`.
+3. El orquestador **re-verifica** `GET /health` de la primaria (3 intentos). Si responde 200, aborta y envía `[DR] Falsa alarma`. Si sigue caída, marca `FAILOVER_TRIGGERED:<ts>` en SSM, dispara el workflow `dr` y envía el correo `[DR] Failover iniciado`.
 4. El workflow `dr` (environment `dr`, rol `sundevs-sre-gha-dr`, todo en us-east-2):
    - `terraform apply -var-file=envs/dr.tfvars`: VPC, endpoints, Redis, Lambda y API, reutilizando la tabla y el bucket replicados.
    - Smoke test MISS/HIT contra la nueva URL.

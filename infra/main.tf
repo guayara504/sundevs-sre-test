@@ -180,6 +180,12 @@ module "dr_automation" {
     aws = aws.dr
   }
 
+  # El canary no debe empezar a sondear hasta que la API (rutas, stage,
+  # integracion y Lambda) exista por completo: en el primer deploy recibia
+  # HTTP 404 durante ~14 min, la alarma entraba en ALARM y el orquestador
+  # intentaba un failover (falso positivo detectado en la prueba de prod).
+  depends_on = [module.service]
+
   name                     = "${local.name}-${local.dr_region_code}"
   project                  = var.project
   environment              = var.environment
