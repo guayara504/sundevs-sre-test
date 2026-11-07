@@ -6,6 +6,13 @@ Infraestructura 100% como código (**Terraform**) para un servicio HTTP que proc
 
 ## 1. Arquitectura
 
+![Arquitectura AWS](docs/architecture.png)
+
+<sub>Fuente editable: [docs/architecture.drawio](docs/architecture.drawio) (iconos oficiales AWS). Debajo, la versión Mermaid del mismo diseño.</sub>
+
+<details>
+<summary>Versión Mermaid</summary>
+
 ```mermaid
 flowchart LR
   client(["Cliente HTTP"]) -->|"HTTPS"| apigw["API Gateway (HTTP API)<br/>throttling, CORS, access logs"]
@@ -48,7 +55,8 @@ flowchart LR
   ddb -.->|"replicacion"| ddbdr
 ```
 
-> **Diagrama AWS con iconos oficiales:** [docs/architecture.drawio](docs/architecture.drawio). Ábrelo en [diagrams.net](https://app.diagrams.net/#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Fguayara504%2Fsundevs-sre-test%2Fmain%2Fdocs%2Farchitecture.drawio) o con la extensión *Draw.io Integration* de VS Code.
+</details>
+
 
 ### Flujo de datos (read-through cache)
 
