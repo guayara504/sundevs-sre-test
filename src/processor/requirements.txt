@@ -1,2 +1,4 @@
+# Lista COMPLETA y fijada (se instala con --no-deps para builds reproducibles).
 # boto3/botocore los provee el runtime python3.12 de Lambda.
+# redis 5.2.1 no tiene dependencias en Python >= 3.11.3.
 redis==5.2.1
